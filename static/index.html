@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Knowledge Base Search</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+        h2 {
+            margin-top: 30px;
+            color: #555;
+        }
+        input[type="text"] {
+            padding: 8px;
+            width: 400px;
+        }
+        input[type="file"] {
+            padding: 5px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #uploadResult, #answer, #completenessResult {
+            margin-top: 10px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-left: 4px solid #007bff;
+            min-height: 20px;
+        }
+        hr {
+            margin: 30px 0;
+            border: none;
+            border-top: 1px solid #ddd;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Knowledge Base Search</h1>
+    
+    <div class="section">
+        <h2>Upload Document</h2>
+        <input type="file" id="fileInput" accept=".txt,.pdf">
+        <button onclick="uploadFile()">Upload</button>
+        <div id="uploadResult"></div>
+    </div>
+    
+    <hr>
+    
+    <div class="section">
+        <h2>Ask Question</h2>
+        <input type="text" id="question" placeholder="Type your question...">
+        <button onclick="askQuestion()">Ask</button>
+        <button type="button" onclick="clearQuestion()">Clear</button>
+        <div id="answer"></div>
+    </div>
+    
+    <hr>
+    
+    <div class="section">
+        <h2>Check Completeness</h2>
+        <input type="file" id="checkFile">
+        <button onclick="checkCompleteness()">Check</button>
+        <div id="completenessResult"></div>
+    </div>
+
+    <script>
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                document.getElementById('uploadResult').innerText = 'Please select a file';
+                return;
+            }
+            
+            const uploadResult = document.getElementById('uploadResult');
+            uploadResult.innerText = 'Uploading...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch('/upload/', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Upload failed: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                uploadResult.innerText = 
+                    'File: ' + result.filename + '\nStatus: ' + result.status + 
+                    (result.phrases_created ? '\nPhrases created: ' + result.phrases_created : '');
+                
+                // Clear the file input after successful upload
+                fileInput.value = '';
+                
+            } catch (error) {
+                uploadResult.innerText = 'Error: ' + error.message;
+            }
+        }
+
+        async function askQuestion() {
+            const questionInput = document.getElementById('question');
+            const question = questionInput.value.trim();
+            const answerDiv = document.getElementById('answer');
+            
+            if (!question) {
+                answerDiv.innerText = 'Please enter a question';
+                return;
+            }
+            
+            answerDiv.innerText = 'Searching...';
+            
+            try {
+                const response = await fetch('/ask/', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({text: question})
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Search failed: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                answerDiv.innerText = 
+                    'Answer: ' + result.answer + 
+                    (result.source ? '\n\nSource: ' + result.source : '') +
+                    (result.confidence ? '\nConfidence: ' + (result.confidence * 100).toFixed(1) + '%' : '');
+                    
+            } catch (error) {
+                answerDiv.innerText = 'Error: ' + error.message;
+            }
+        }
+
+        function clearQuestion() {
+            document.getElementById('question').value = '';
+            document.getElementById('answer').innerText = '';
+        }
+
+        async function checkCompleteness() {
+            const checkFileInput = document.getElementById('checkFile');
+            const file = checkFileInput.files[0];
+            const completenessResult = document.getElementById('completenessResult');
+            
+            if (!file) {
+                completenessResult.innerText = 'Please select a file';
+                return;
+            }
+            
+            completenessResult.innerText = 'Checking...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch('/check-completeness/', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Check failed: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                completenessResult.innerText = 
+                    'File: ' + result.filename + '\nCompleteness: ' + result.completeness;
+                
+                // Clear the file input after successful check
+                checkFileInput.value = '';
+                
+            } catch (error) {
+                completenessResult.innerText = 'Error: ' + error.message;
+            }
+        }
+
+        // Clear file inputs when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('fileInput').value = '';
+            document.getElementById('checkFile').value = '';
+        });
+    </script>
+</body>
+</html>
